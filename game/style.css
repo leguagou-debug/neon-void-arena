@@ -1,0 +1,28 @@
+/* Neon Void Arena - page chrome. The game itself is drawn on the canvas;
+   this only centres it on a black page and keeps it at a 16:9 fit. */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #020109;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Read aloud, never shown: the status line screen readers announce. */
+#status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
