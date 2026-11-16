@@ -5,7 +5,9 @@
 // the same frame and the screenshots are honest renders of the game.
 
 import { STEP } from './config.js';
+import { createEnemy } from './entities.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { waveScale } from './waves.js';
 
 function nearestEnemy(world) {
   let best = null;
@@ -19,7 +21,8 @@ function nearestEnemy(world) {
 
 function autopilotControl(world, skilled) {
   const player = world.player;
-  const enemy = nearestEnemy(world);
+  // In a boss scene the pilot duels the Dreadnought itself, not escorts.
+  const enemy = world.enemies.find((candidate) => candidate.kind === 'boss') || nearestEnemy(world);
   if (!skilled) {
     // The doomed pilot for the game-over scene: barely moves, never fires.
     return { move: { x: 0, y: 0, moving: false }, aimX: player.x + 80, aimY: player.y - 80, firing: false, dash: false };
@@ -31,7 +34,13 @@ function autopilotControl(world, skilled) {
     const dy = player.y - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
     if (dist < 170) { moveX = dx / dist; moveY = dy / dist; }
-    else { moveX = -dy / dist * 0.6; moveY = dx / dist * 0.6; }
+    else {
+      // Strafe tangentially, but against the boss close in when it is
+      // far away so the duel stays in frame instead of drifting apart.
+      const inward = enemy.kind === 'boss' && dist > 320 ? 0.75 : 0;
+      moveX = -dy / dist * 0.6 - dx / dist * inward;
+      moveY = dx / dist * 0.6 - dy / dist * inward;
+    }
   }
   if (world.pickups.length > 0) {
     const pickup = world.pickups[0];
@@ -85,6 +94,33 @@ export function stageShot(name, world) {
       runUntilBusy(world, 40, ignoredEvents);
     }
     return { screen: SCREEN_PLAY, best: Math.max(0, world.score - 300) };
+  }
+  if (name === 'boss') {
+    // Stage the wave-5 duel directly: the Dreadnought at three-fifths
+    // hull, a pair of escorts, and the player mid-fight with triple shot
+    // running. A few seconds of skilled autopilot then fills the frame
+    // with real bullets and boss orbs before the shutter falls.
+    world.wave = 5;
+    world.score = 12480;
+    world.kills = 41;
+    world.combo = 2.5;
+    world.comboTimer = 2.6;
+    world.betweenTimer = 999;
+    const scale = waveScale(5);
+    const boss = createEnemy('boss', 880, 300, scale);
+    boss.health = Math.round(boss.maxHealth * 0.75);
+    boss.stateTimer = 0.7;
+    world.enemies.push(boss);
+    world.enemies.push(createEnemy('chaser', 1080, 560, scale));
+    world.enemies.push(createEnemy('dart', 200, 150, scale));
+    // The player starts closer to the Dreadnought than to either escort,
+    // so the autopilot duels the boss itself, triple shot blazing.
+    world.player.x = 500;
+    world.player.y = 470;
+    world.player.health = 76;
+    world.player.spreadTimer = 6;
+    runScene(world, 1.6, true, ignoredEvents);
+    return { screen: world.over ? SCREEN_OVER : SCREEN_PLAY, best: 15200 };
   }
   if (name === 'over') {
     // Play properly first so the results panel shows a real run's score

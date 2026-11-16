@@ -7,6 +7,12 @@ import { ARENA, WAVE } from './config.js';
 import { pickWeighted } from './random.js';
 
 export function waveComposition(waveNumber, random) {
+  // Every fifth wave is a boss wave: the Void Dreadnought enters first,
+  // trailed by a small escort so the arena never sits empty while the
+  // player duels it.
+  if (waveNumber % 5 === 0) {
+    return ['boss', 'chaser', 'dart', 'chaser', 'spitter', 'dart', 'chaser'];
+  }
   const count = WAVE.firstCount + (waveNumber - 1) * WAVE.countGrowth;
   const kinds = [];
   for (let i = 0; i < count; i += 1) {

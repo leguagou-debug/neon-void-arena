@@ -8,7 +8,9 @@ A neon arena survival shooter that runs in a desktop browser from
 plain static files - no build step, no network requests, no assets to
 download. Survive escalating waves of void ships, chain kills to raise
 your combo multiplier, and grab hull, triple-shot and shield drops
-from fallen brutes.
+from fallen brutes. Every fifth wave, the Void Dreadnought arrives:
+a spiked boss with its own health bar that alternates fan barrages of
+plasma orbs with telegraphed charge attacks.
 
 ## Play
 
@@ -34,6 +36,10 @@ then open http://localhost:8080 in desktop Chrome.
 - **Darts** (orange) are fast, fragile and weave as they close in.
 - **Spitters** (red) keep their distance and fire plasma orbs.
 - **Brutes** (purple) are slow, heavily armoured, and always drop a pickup.
+- **The Void Dreadnought** (crimson, every 5th wave) is a huge spiked
+  boss with a top-of-screen health bar. It stalks you, fires fan
+  barrages of plasma orbs, and charges after a flashing telegraph.
+  Killing it pays 2,500 points and drops hull + triple-shot pickups.
 
 ## Layout
 

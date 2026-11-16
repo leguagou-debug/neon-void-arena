@@ -61,6 +61,8 @@ function playEvents(events) {
     else if (event === EVENT.playerHurt) sound.playerHurt();
     else if (event === EVENT.pickup) sound.pickup();
     else if (event === EVENT.waveStart) sound.waveStart();
+    else if (event === EVENT.bossSpawn) sound.bossSpawn();
+    else if (event === EVENT.bossAttack) sound.bossAttack();
     else if (event === EVENT.dash) sound.dash();
     else if (event === EVENT.gameOver) { sound.gameOver(); saveBest(); }
   }

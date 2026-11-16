@@ -52,6 +52,14 @@ export function createEnemy(kind, x, y, waveScale) {
     shootTimer: 1.4 + (nextId % 7) * 0.23,
     wobblePhase: (nextId * 0.71) % (Math.PI * 2),
     flashTimer: 0,
+    // Boss-only state machine fields (unused by ordinary enemies):
+    // stalk -> barrage (fan of orbs) or telegraph -> charge, on a loop.
+    state: 'stalk',
+    stateTimer: 2.0,
+    volleysLeft: 0,
+    attackCount: 0,
+    chargeAngle: 0,
+    rotation: 0,
     alive: true,
   };
 }

@@ -39,6 +39,8 @@ export class SoundBank {
   playerHurt() { this.tone(110, 0.22, 'triangle', 0.18, 55); }
   pickup() { this.tone(620, 0.14, 'sine', 0.12, 1240); }
   waveStart() { this.tone(392, 0.16, 'square', 0.09, 784); }
+  bossSpawn() { this.tone(196, 0.45, 'sawtooth', 0.13, 49); }
+  bossAttack() { this.tone(92, 0.3, 'sawtooth', 0.15, 44); }
   dash() { this.tone(300, 0.12, 'sine', 0.08, 900); }
   gameOver() { this.tone(440, 0.7, 'triangle', 0.14, 55); }
   toggleMute() {

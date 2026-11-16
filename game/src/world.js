@@ -4,7 +4,7 @@
 // events so main.js can play sounds without the simulation knowing about
 // audio at all.
 
-import { ARENA, PLAYER, WAVE } from './config.js';
+import { ARENA, BOSS, PLAYER, WAVE } from './config.js';
 import { burst, createBullet, createEnemy, createPickup, createPlayer } from './entities.js';
 import { spawnPoint, waveComposition, waveScale } from './waves.js';
 
@@ -17,6 +17,8 @@ export const EVENT = {
   waveStart: 'waveStart',
   dash: 'dash',
   gameOver: 'gameOver',
+  bossSpawn: 'bossSpawn',
+  bossAttack: 'bossAttack',
 };
 
 function clampToArena(entity) {
@@ -131,9 +133,17 @@ export class World {
     this.comboTimer = 2.6;
     this.combo = Math.min(8, this.combo + 0.25);
     this.score += Math.round(enemy.score * this.combo);
-    this.shake = Math.max(this.shake, enemy.kind === 'brute' ? 11 : 5);
-    burst(this.particles, this.random, enemy.x, enemy.y, enemy.color, enemy.kind === 'brute' ? 34 : 16, 260);
+    this.shake = Math.max(this.shake, enemy.kind === 'boss' ? 16 : enemy.kind === 'brute' ? 11 : 5);
+    burst(this.particles, this.random, enemy.x, enemy.y, enemy.color, enemy.kind === 'boss' ? 60 : enemy.kind === 'brute' ? 34 : 16, 260);
     events.push(EVENT.explosion);
+    if (enemy.kind === 'boss') {
+      // The Dreadnought goes down in a double burst and always pays out
+      // two pickups: hull on one side, triple shot on the other.
+      burst(this.particles, this.random, enemy.x, enemy.y, BOSS.coreColor, 30, 300);
+      this.pickups.push(createPickup('heal', enemy.x - 30, enemy.y));
+      this.pickups.push(createPickup('spread', enemy.x + 30, enemy.y));
+      return;
+    }
     const dropRoll = this.random();
     if (enemy.kind === 'brute' || dropRoll < 0.07) {
       const kind = dropRoll < 0.03 ? 'heal' : dropRoll < 0.055 ? 'spread' : 'shield';
@@ -163,6 +173,7 @@ export class World {
           const kind = this.spawnQueue.shift();
           const point = spawnPoint(this.random);
           this.enemies.push(createEnemy(kind, point.x, point.y, waveScale(this.wave)));
+          if (kind === 'boss') events.push(EVENT.bossSpawn);
         }
       } else if (this.enemies.length === 0) {
         this.betweenTimer -= dt;
@@ -208,11 +219,88 @@ export class World {
     this.shake = Math.max(0, this.shake - dt * 26);
   }
 
+  // The Void Dreadnought's brain: it stalks the player at mid range,
+  // then alternates two attacks - a fan barrage of plasma orbs and a
+  // telegraphed charge straight at the player's position.
+  updateBoss(boss, dt, events, angleToPlayer) {
+    const player = this.player;
+    boss.rotation += dt * 0.85;
+    boss.stateTimer -= dt;
+    const dist = Math.sqrt(distanceSquared(boss, player));
+
+    if (boss.state === 'stalk') {
+      const orbit = dist <= BOSS.stalkRange;
+      const moveAngle = orbit ? angleToPlayer + Math.PI / 2 : angleToPlayer;
+      const speed = orbit ? boss.speed * 0.55 : boss.speed;
+      boss.x += Math.cos(moveAngle) * speed * dt;
+      boss.y += Math.sin(moveAngle) * speed * dt;
+      if (boss.stateTimer <= 0 && player.alive) {
+        boss.attackCount += 1;
+        if (boss.attackCount % 2 === 1) {
+          boss.state = 'barrage';
+          boss.volleysLeft = BOSS.barrageVolleys;
+          boss.stateTimer = 0;
+        } else {
+          boss.state = 'telegraph';
+          boss.stateTimer = BOSS.telegraphTime;
+        }
+      }
+      return;
+    }
+
+    if (boss.state === 'barrage') {
+      if (boss.stateTimer <= 0 && boss.volleysLeft > 0) {
+        boss.volleysLeft -= 1;
+        boss.stateTimer = BOSS.barrageGap;
+        for (let i = 0; i < BOSS.barrageOrbs; i += 1) {
+          const offset = BOSS.barrageOrbs === 1 ? 0
+            : -BOSS.barrageHalfAngle + (2 * BOSS.barrageHalfAngle * i) / (BOSS.barrageOrbs - 1);
+          this.bullets.push(createBullet(boss.x, boss.y, angleToPlayer + offset, false));
+        }
+        events.push(EVENT.bossAttack);
+      }
+      if (boss.volleysLeft <= 0 && boss.stateTimer <= 0) {
+        boss.state = 'stalk';
+        boss.stateTimer = BOSS.stalkTime;
+      }
+      return;
+    }
+
+    if (boss.state === 'telegraph') {
+      // It hangs still and flashes: the charge is coming, move!
+      boss.flashTimer = 0.06;
+      if (boss.stateTimer <= 0) {
+        boss.state = 'charge';
+        boss.chargeAngle = angleToPlayer;
+        boss.stateTimer = BOSS.chargeTime;
+        events.push(EVENT.bossAttack);
+      }
+      return;
+    }
+
+    // charge
+    boss.x += Math.cos(boss.chargeAngle) * BOSS.chargeSpeed * dt;
+    boss.y += Math.sin(boss.chargeAngle) * BOSS.chargeSpeed * dt;
+    if (boss.stateTimer <= 0) {
+      boss.state = 'stalk';
+      boss.stateTimer = BOSS.stalkTime;
+    }
+  }
+
   updateEnemies(dt, events) {
     const player = this.player;
     for (const enemy of this.enemies) {
       enemy.flashTimer = Math.max(0, enemy.flashTimer - dt);
       const angleToPlayer = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+      if (enemy.kind === 'boss') {
+        this.updateBoss(enemy, dt, events, angleToPlayer);
+        clampToArena(enemy);
+        if (player.alive && distanceSquared(enemy, player) < (enemy.radius + player.radius) ** 2) {
+          this.hurtPlayer(enemy.damage, events);
+          burst(this.particles, this.random, enemy.x, enemy.y, enemy.color, 10, 200);
+        }
+        continue;
+      }
       let moveAngle = angleToPlayer;
       if (enemy.kind === 'dart') moveAngle += Math.sin(this.time * 5 + enemy.wobblePhase) * 0.55;
       if (enemy.kind === 'spitter') {

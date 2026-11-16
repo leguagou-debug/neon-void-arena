@@ -3,7 +3,7 @@
 // title, HUD, wave banners, pause, and the game-over results panel.
 // The renderer only reads the world; it never changes it.
 
-import { ARENA, COLORS, PLAYER } from './config.js';
+import { ARENA, BOSS, COLORS, PLAYER } from './config.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
@@ -84,7 +84,11 @@ function drawPlayer(ctx, player, time) {
 function drawEnemy(ctx, enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
-  const color = enemy.flashTimer > 0 ? '#ffffff' : enemy.color;
+  // Ordinary enemies flash white when hit; the boss only pales to a
+  // lighter crimson so its colour identity survives its own barrage.
+  const color = enemy.flashTimer > 0
+    ? (enemy.kind === 'boss' ? '#ff7285' : '#ffffff')
+    : enemy.color;
   ctx.shadowColor = enemy.color;
   ctx.shadowBlur = 18;
   ctx.fillStyle = color;
@@ -104,6 +108,42 @@ function drawEnemy(ctx, enemy) {
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath(); ctx.fill();
+  } else if (enemy.kind === 'boss') {
+    // The Void Dreadnought: a rotating ring of twelve spikes around a
+    // counter-rotating hull, with a burning gold core. Nothing else in
+    // the arena looks remotely like it.
+    ctx.save();
+    ctx.rotate(enemy.rotation || 0);
+    ctx.beginPath();
+    const spikes = 12;
+    for (let i = 0; i < spikes; i += 1) {
+      const angle = (i / spikes) * Math.PI * 2;
+      const midAngle = angle + Math.PI / spikes;
+      const tipX = Math.cos(angle) * (enemy.radius + 14);
+      const tipY = Math.sin(angle) * (enemy.radius + 14);
+      const baseX = Math.cos(midAngle) * enemy.radius;
+      const baseY = Math.sin(midAngle) * enemy.radius;
+      if (i === 0) ctx.moveTo(tipX, tipY); else ctx.lineTo(tipX, tipY);
+      ctx.lineTo(baseX, baseY);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.rotate(-(enemy.rotation || 0) * 1.6);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * Math.PI * 2;
+      const px = Math.cos(angle) * enemy.radius * 0.66;
+      const py = Math.sin(angle) * enemy.radius * 0.66;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#2b0018';
+    ctx.beginPath();
+    ctx.arc(0, 0, enemy.radius * 0.4, 0, Math.PI * 2); ctx.fill();
+    glowCircle(ctx, 0, 0, enemy.radius * 0.24, '#ffd319');
   } else {
     ctx.beginPath();
     ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2); ctx.fill();
@@ -186,6 +226,26 @@ function drawHud(ctx, world, best) {
   ctx.font = '15px system-ui, sans-serif';
   ctx.fillStyle = COLORS.dimText;
   ctx.fillText(`HOSTILES ${world.enemies.length + world.spawnQueue.length}`, ARENA.width / 2, 86);
+
+  // Boss health bar, top centre, shown while the Dreadnought lives.
+  const boss = world.enemies.find((enemy) => enemy.kind === 'boss');
+  if (boss) {
+    const bossBarWidth = 560;
+    const bossBarX = (ARENA.width - bossBarWidth) / 2;
+    ctx.fillStyle = '#ff2040';
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.shadowColor = '#ff2040';
+    ctx.shadowBlur = 10;
+    ctx.fillText(BOSS.name, ARENA.width / 2, 108);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fillRect(bossBarX, 116, bossBarWidth, 12);
+    ctx.fillStyle = '#ff2040';
+    ctx.shadowColor = '#ff2040';
+    ctx.shadowBlur = 12;
+    ctx.fillRect(bossBarX, 116, bossBarWidth * Math.max(0, boss.health / boss.maxHealth), 12);
+    ctx.shadowBlur = 0;
+  }
 
   // Health bar, top right.
   const barWidth = 240;
@@ -271,6 +331,8 @@ export function render(ctx, world, screen, best) {
     ctx.fillText('WASD / Arrows - move      Mouse - aim      Hold click / Space - fire', ARENA.width / 2, panel.y + 252);
     ctx.fillText('Shift / Right click - dash      P - pause      M - mute', ARENA.width / 2, panel.y + 280);
     ctx.fillText('Grab + hull, W triple shot and O shield drops from fallen brutes.', ARENA.width / 2, panel.y + 308);
+    ctx.fillStyle = '#ff2040';
+    ctx.fillText('Every 5th wave the VOID DREADNOUGHT comes for you.', ARENA.width / 2, panel.y + 334);
     ctx.fillStyle = '#ffe95a';
     ctx.font = 'bold 24px system-ui, sans-serif';
     ctx.fillText('CLICK OR PRESS ENTER TO LAUNCH', ARENA.width / 2, panel.y + 362);
