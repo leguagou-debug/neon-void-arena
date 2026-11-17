@@ -1,12 +1,13 @@
 // Neon Void Arena - deterministic screenshot scenes behind
-// ?shot=start|play|clash|over. Each scene runs the real simulation
-// forward from a fresh world with a simple autopilot at the controls,
-// for a fixed number of fixed steps, so the same seed always renders
-// the same frame and the screenshots are honest renders of the game.
+// ?shot=start|play|upgrade|boss|over. Each scene runs the real
+// simulation forward from a fresh world with a simple autopilot at
+// the controls, for a fixed number of fixed steps, so the same seed
+// always renders the same frame and the screenshots are honest
+// renders of the game.
 
 import { STEP } from './config.js';
 import { createEnemy } from './entities.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE } from './render.js';
 import { waveScale } from './waves.js';
 
 function nearestEnemy(world) {
@@ -61,21 +62,9 @@ function runScene(world, seconds, skilled, eventsSink) {
   const steps = Math.round(seconds / STEP);
   for (let i = 0; i < steps; i += 1) {
     world.step(STEP, autopilotControl(world, skilled), eventsSink);
+    // The pilot drafts like a player in a hurry: first card, every time.
+    if (world.phase === 'draft') world.applyChoice(0, eventsSink);
     if (world.over) break;
-  }
-}
-
-// Step the skilled pilot forward until the arena is busy enough to make
-// an honest action shot: several hostiles on screen and shots in flight.
-// A fixed end time kept landing between waves, when the arena is empty,
-// so the play scenes search for their moment instead of taking it blind.
-function runUntilBusy(world, maxSeconds, eventsSink) {
-  const steps = Math.round(maxSeconds / STEP);
-  for (let i = 0; i < steps; i += 1) {
-    world.step(STEP, autopilotControl(world, true), eventsSink);
-    if (world.over) return;
-    const busy = world.enemies.length >= 5 && world.bullets.length >= 3 && world.wave >= 2;
-    if (busy) return;
   }
 }
 
@@ -83,17 +72,55 @@ export function stageShot(name, world) {
   const ignoredEvents = [];
   world.reset();
   if (name === 'play') {
-    runUntilBusy(world, 40, ignoredEvents);
-    return { screen: world.over ? SCREEN_OVER : SCREEN_PLAY, best: Math.max(0, world.score - 300) };
+    // A staged mid-run melee at wave 7: the drafted build (heavy
+    // rounds, split cannon, a seeker pod, lance rounds) against a
+    // shielded elite, a splitter, a brute and friends. A few seconds
+    // of skilled autopilot fills the frame with real fire, homing
+    // missiles and score popups before the shutter falls.
+    world.wave = 7;
+    world.score = 8640;
+    world.kills = 63;
+    world.combo = 3;
+    world.comboTimer = 2.6;
+    world.betweenTimer = 999;
+    world.build.damage = 2;
+    world.build.multishot = 1;
+    world.build.missiles = 1;
+    world.build.pierce = 1;
+    const scale = waveScale(7);
+    world.enemies.push(createEnemy('elite', 950, 210, scale));
+    world.enemies.push(createEnemy('splitter', 300, 520, scale));
+    world.enemies.push(createEnemy('splitter', 1010, 470, scale));
+    world.enemies.push(createEnemy('brute', 1080, 560, scale));
+    world.enemies.push(createEnemy('chaser', 220, 180, scale));
+    world.enemies.push(createEnemy('chaser', 420, 90, scale));
+    world.enemies.push(createEnemy('spitter', 1120, 120, scale));
+    world.enemies.push(createEnemy('dart', 640, 110, scale));
+    world.player.x = 600;
+    world.player.y = 420;
+    world.player.health = 68;
+    world.player.spreadTimer = 4;
+    runScene(world, 1.5, true, ignoredEvents);
+    return { screen: world.over ? SCREEN_OVER : SCREEN_PLAY, best: 9100 };
   }
-  if (name === 'clash') {
-    runUntilBusy(world, 75, ignoredEvents);
-    if (world.over || world.enemies.length < 3) {
-      // A dead or quiet run makes a poor mid-game shot: take an earlier busy slice.
-      world.reset();
-      runUntilBusy(world, 40, ignoredEvents);
+  if (name === 'upgrade') {
+    // Play the opening wave honestly, then freeze on the moment the
+    // first upgrade draft opens: three cards, one choice.
+    world.build.damage = 1;
+    const steps = Math.round(90 / STEP);
+    for (let i = 0; i < steps; i += 1) {
+      world.step(STEP, autopilotControl(world, true), ignoredEvents);
+      if (world.phase === 'draft' || world.over) break;
     }
-    return { screen: SCREEN_PLAY, best: Math.max(0, world.score - 300) };
+    if (world.phase !== 'draft' && !world.over) {
+      // The pilot cleared too slowly for the cap: clear the stage by
+      // hand and let one real step open the draft on an empty arena.
+      world.enemies = [];
+      world.spawnQueue = [];
+      world.wave = Math.max(1, world.wave);
+      world.step(STEP, autopilotControl(world, true), ignoredEvents);
+    }
+    return { screen: world.phase === 'draft' ? SCREEN_UPGRADE : SCREEN_PLAY, best: Math.max(0, world.score - 300) };
   }
   if (name === 'boss') {
     // Stage the wave-5 duel directly: the Dreadnought at three-fifths
@@ -110,9 +137,13 @@ export function stageShot(name, world) {
     const boss = createEnemy('boss', 880, 300, scale);
     boss.health = Math.round(boss.maxHealth * 0.75);
     boss.stateTimer = 0.7;
+    world.build.damage = 2;
+    world.build.multishot = 1;
+    world.build.missiles = 1;
     world.enemies.push(boss);
     world.enemies.push(createEnemy('chaser', 1080, 560, scale));
     world.enemies.push(createEnemy('dart', 200, 150, scale));
+    world.enemies.push(createEnemy('splitter', 240, 610, scale));
     // The player starts closer to the Dreadnought than to either escort,
     // so the autopilot duels the boss itself, triple shot blazing.
     world.player.x = 500;

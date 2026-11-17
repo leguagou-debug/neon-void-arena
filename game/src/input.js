@@ -12,6 +12,8 @@ export class Input {
     this.dashQueued = false;
     this.pauseQueued = false;
     this.confirmQueued = false;
+    this.choiceQueued = null;
+    this.clickQueued = null;
     this.canvas = canvas;
 
     window.addEventListener('keydown', (event) => {
@@ -20,23 +22,33 @@ export class Input {
       if (key === 'shift') this.dashQueued = true;
       if (key === 'p' || key === 'escape') this.pauseQueued = true;
       if (key === 'enter') this.confirmQueued = true;
+      if (key === '1' || key === '2' || key === '3') this.choiceQueued = Number(key) - 1;
       this.keys.add(key);
     });
     window.addEventListener('keyup', (event) => {
       this.keys.delete(event.key.toLowerCase());
     });
     canvas.addEventListener('mousemove', (event) => {
-      const rect = canvas.getBoundingClientRect();
-      this.mouseX = ((event.clientX - rect.left) / rect.width) * canvas.width;
-      this.mouseY = ((event.clientY - rect.top) / rect.height) * canvas.height;
+      const point = this.toCanvas(event);
+      this.mouseX = point.x;
+      this.mouseY = point.y;
     });
     canvas.addEventListener('mousedown', (event) => {
       if (event.button === 2) this.dashQueued = true;
       else this.mouseDown = true;
       this.confirmQueued = true;
+      this.clickQueued = this.toCanvas(event);
     });
     window.addEventListener('mouseup', () => { this.mouseDown = false; });
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+  }
+
+  toCanvas(event) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * this.canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * this.canvas.height,
+    };
   }
 
   moveVector() {
@@ -69,6 +81,20 @@ export class Input {
   takeConfirm() {
     const queued = this.confirmQueued;
     this.confirmQueued = false;
+    return queued;
+  }
+
+  // Upgrade draft answers: a number key (card index) or a click point
+  // that main.js maps back to a card with the shared card geometry.
+  takeChoice() {
+    const queued = this.choiceQueued;
+    this.choiceQueued = null;
+    return queued;
+  }
+
+  takeClick() {
+    const queued = this.clickQueued;
+    this.clickQueued = null;
     return queued;
   }
 }

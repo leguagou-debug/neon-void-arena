@@ -8,9 +8,12 @@ A neon arena survival shooter that runs in a desktop browser from
 plain static files - no build step, no network requests, no assets to
 download. Survive escalating waves of void ships, chain kills to raise
 your combo multiplier, and grab hull, triple-shot and shield drops
-from fallen brutes. Every fifth wave, the Void Dreadnought arrives:
-a spiked boss with its own health bar that alternates fan barrages of
-plasma orbs with telegraphed charge attacks.
+from fallen brutes. Every cleared wave opens an upgrade draft: pick
+one of three cards and build your ship for the run - heavier rounds,
+a split cannon, piercing lance rounds, homing seeker missiles and
+more. Every fifth wave, the Void Dreadnought arrives: a spiked boss
+with its own health bar that alternates fan barrages of plasma orbs
+with telegraphed charge attacks.
 
 ## Play
 
@@ -29,6 +32,21 @@ then open http://localhost:8080 in desktop Chrome.
 - **Hold left click / Space** - fire
 - **Shift / right click** - dash (brief invulnerability, short cooldown)
 - **P** - pause, **M** - mute, **Enter** - start / retry
+- **1 / 2 / 3 or click a card** - choose an upgrade when a wave is cleared
+
+## Upgrades
+
+Clearing a wave freezes the fight and drafts three upgrade cards.
+The build lasts the whole run and stacks, so no two runs arm the
+same ship:
+
+- **Heavy Rounds** - +1 damage per bullet (5 levels)
+- **Overclock** - fire 16% faster (5 levels)
+- **Split Cannon** - +1 bullet per volley (3 levels)
+- **Lance Rounds** - bullets pierce +1 enemy (3 levels)
+- **Seeker Pods** - homing missiles that detonate in a blast (3 levels)
+- **Ion Thrusters** - +9% movement speed (3 levels)
+- **Hull Plating** - +25 max hull and repair 25 (3 levels)
 
 ## Enemies
 
@@ -36,6 +54,10 @@ then open http://localhost:8080 in desktop Chrome.
 - **Darts** (orange) are fast, fragile and weave as they close in.
 - **Spitters** (red) keep their distance and fire plasma orbs.
 - **Brutes** (purple) are slow, heavily armoured, and always drop a pickup.
+- **Splitters** (green) burst into two fast **Minis** when destroyed -
+  killing one at point blank is a bad trade.
+- **Elites** (violet, from wave 6) hide behind a regenerating energy
+  shield: strip the cyan ring first, and do not let it recharge.
 - **The Void Dreadnought** (crimson, every 5th wave) is a huge spiked
   boss with a top-of-screen health bar. It stalks you, fires fan
   barrages of plasma orbs, and charges after a flashing telegraph.
@@ -44,8 +66,8 @@ then open http://localhost:8080 in desktop Chrome.
 ## Layout
 
 - `game/` - the playable game: `index.html`, `style.css`, and ES modules
-  under `src/` (config, input, audio, entities, waves, world, render,
-  shots, main - one clear job each).
+  under `src/` (config, input, audio, entities, waves, upgrades, world,
+  render, shots, main - one clear job each).
 - `screenshots/` - real renders of the game, taken from its own
   `?shot=` scenes.
 - `main.ts` - the hand-in program: copies `game/` and `screenshots/`

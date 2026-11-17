@@ -13,6 +13,7 @@ export function createPlayer(x, y) {
     vx: 0, vy: 0,
     radius: PLAYER.radius,
     health: PLAYER.maxHealth,
+    maxHealth: PLAYER.maxHealth,
     aimAngle: -Math.PI / 2,
     fireTimer: 0,
     dashTimer: 0,
@@ -25,7 +26,7 @@ export function createPlayer(x, y) {
   };
 }
 
-export function createBullet(x, y, angle, fromPlayer) {
+export function createBullet(x, y, angle, fromPlayer, damage = 1, pierce = 0) {
   const speed = fromPlayer ? PLAYER.bulletSpeed : 330;
   return {
     id: nextId++, x, y,
@@ -33,6 +34,25 @@ export function createBullet(x, y, angle, fromPlayer) {
     vy: Math.sin(angle) * speed,
     radius: fromPlayer ? PLAYER.bulletRadius : 6,
     fromPlayer,
+    // Player bullets carry the build's damage and may punch through a
+    // number of extra enemies; hitIds stops a piercing bullet from
+    // striking the same enemy twice.
+    damage,
+    pierce,
+    hitIds: null,
+    alive: true,
+  };
+}
+
+// A homing seeker missile from the upgrade draft: it steers toward the
+// nearest enemy and detonates in a small blast when it arrives.
+export function createMissile(x, y, angle) {
+  return {
+    id: nextId++, x, y,
+    angle,
+    radius: 6,
+    life: 2.6,
+    trailTimer: 0,
     alive: true,
   };
 }
@@ -52,6 +72,11 @@ export function createEnemy(kind, x, y, waveScale) {
     shootTimer: 1.4 + (nextId % 7) * 0.23,
     wobblePhase: (nextId * 0.71) % (Math.PI * 2),
     flashTimer: 0,
+    // Energy shield (elites only): absorbs damage before the hull does
+    // and regenerates after a few untouched seconds.
+    shield: base.shield ? Math.round(base.shield * waveScale.health) : 0,
+    maxShield: base.shield ? Math.round(base.shield * waveScale.health) : 0,
+    shieldRegenTimer: 0,
     // Boss-only state machine fields (unused by ordinary enemies):
     // stalk -> barrage (fan of orbs) or telegraph -> charge, on a loop.
     state: 'stalk',
@@ -66,6 +91,16 @@ export function createEnemy(kind, x, y, waveScale) {
 
 export function createPickup(kind, x, y) {
   return { id: nextId++, kind, x, y, radius: 12, age: 0, alive: true };
+}
+
+// An expanding ring left by a heavy death or a missile blast.
+export function createShockwave(x, y, color, maxRadius) {
+  return { x, y, color, radius: 6, maxRadius, life: 0.38, maxLife: 0.38, alive: true };
+}
+
+// A floating score popup that rises and fades where an enemy fell.
+export function createFloater(x, y, text, color) {
+  return { x, y, text, color, life: 0.9, maxLife: 0.9, alive: true };
 }
 
 export function createParticle(x, y, angle, speed, color, life, size) {

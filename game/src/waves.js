@@ -11,7 +11,7 @@ export function waveComposition(waveNumber, random) {
   // trailed by a small escort so the arena never sits empty while the
   // player duels it.
   if (waveNumber % 5 === 0) {
-    return ['boss', 'chaser', 'dart', 'chaser', 'spitter', 'dart', 'chaser'];
+    return ['boss', 'chaser', 'dart', 'splitter', 'spitter', 'dart', 'chaser'];
   }
   const count = WAVE.firstCount + (waveNumber - 1) * WAVE.countGrowth;
   const kinds = [];
@@ -19,12 +19,17 @@ export function waveComposition(waveNumber, random) {
     const entries = [{ value: 'chaser', weight: 10 }];
     if (waveNumber >= 2) entries.push({ value: 'dart', weight: 3 + waveNumber });
     if (waveNumber >= 3) entries.push({ value: 'spitter', weight: 2 + waveNumber * 0.7 });
+    if (waveNumber >= 3) entries.push({ value: 'splitter', weight: 2 + waveNumber * 0.6 });
     if (waveNumber >= 4) entries.push({ value: 'brute', weight: 1 + waveNumber * 0.55 });
+    if (waveNumber >= 6) entries.push({ value: 'elite', weight: 0.8 + waveNumber * 0.3 });
     kinds.push(pickWeighted(random, entries));
   }
   // Every fourth wave opens with a brute so its screenshot-worthy bulk
   // is guaranteed to show up on a schedule, not just by luck.
   if (waveNumber % 4 === 0) kinds[0] = 'brute';
+  // From wave 6 on, one slot in three waves is a guaranteed shielded
+  // elite, so its cyan shield ring is a regular sight, not a rarity.
+  if (waveNumber >= 6 && waveNumber % 3 === 0) kinds[1] = 'elite';
   return kinds;
 }
 

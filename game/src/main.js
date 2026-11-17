@@ -8,8 +8,9 @@ import { ARENA, STEP } from './config.js';
 import { SoundBank } from './audio.js';
 import { Input } from './input.js';
 import { makeRandom } from './random.js';
-import { render, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { render, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE } from './render.js';
 import { stageShot } from './shots.js';
+import { upgradeCardRect } from './upgrades.js';
 import { EVENT, World } from './world.js';
 
 const canvas = document.getElementById('game');
@@ -63,6 +64,9 @@ function playEvents(events) {
     else if (event === EVENT.waveStart) sound.waveStart();
     else if (event === EVENT.bossSpawn) sound.bossSpawn();
     else if (event === EVENT.bossAttack) sound.bossAttack();
+    else if (event === EVENT.draftOpen) sound.draftOpen();
+    else if (event === EVENT.upgrade) sound.upgrade();
+    else if (event === EVENT.missile) sound.missile();
     else if (event === EVENT.dash) sound.dash();
     else if (event === EVENT.gameOver) { sound.gameOver(); saveBest(); }
   }
@@ -90,10 +94,35 @@ function runLiveGame() {
     }
     if (input.keys.has('m')) { input.keys.delete('m'); sound.toggleMute(); }
 
-    const confirmed = input.takeConfirm();
-    if (confirmed && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startRun();
-
-    if (screen === SCREEN_PLAY) {
+    if (screen === SCREEN_UPGRADE) {
+      // The draft: a number key or a click on a card picks the upgrade.
+      // The world keeps its ambient effects ticking behind the cards.
+      const events = [];
+      let choice = input.takeChoice();
+      const click = input.takeClick();
+      if (choice === null && click && world.choices) {
+        for (let i = 0; i < world.choices.length; i += 1) {
+          const rect = upgradeCardRect(i);
+          if (click.x >= rect.x && click.x <= rect.x + rect.width
+            && click.y >= rect.y && click.y <= rect.y + rect.height) {
+            choice = i;
+            break;
+          }
+        }
+      }
+      input.takeConfirm(); // a card click must not leak into start/retry
+      if (choice !== null) world.applyChoice(choice, events);
+      world.step(STEP, {
+        move: { x: 0, y: 0, moving: false },
+        aimX: world.player.x + 140,
+        aimY: world.player.y - 60,
+        firing: false,
+        dash: false,
+      }, events);
+      if (world.phase === 'combat') screen = SCREEN_PLAY;
+      playEvents(events);
+    } else if (screen === SCREEN_PLAY) {
+      input.takeConfirm(); // clicks fire the cannon here; nothing to confirm
       accumulator += elapsed;
       const events = [];
       while (accumulator >= STEP) {
@@ -108,17 +137,22 @@ function runLiveGame() {
         }, events);
         if (world.over) { screen = SCREEN_OVER; break; }
       }
+      if (!world.over && world.phase === 'draft') screen = SCREEN_UPGRADE;
       playEvents(events);
-    } else if (screen === SCREEN_TITLE) {
-      // Let a quiet wave drift behind the title so the arena feels alive.
-      const events = [];
-      world.step(STEP, {
-        move: { x: 0, y: 0, moving: false },
-        aimX: world.player.x + 140,
-        aimY: world.player.y - 60,
-        firing: false,
-        dash: false,
-      }, events);
+    } else if (screen === SCREEN_TITLE || screen === SCREEN_OVER) {
+      const confirmed = input.takeConfirm();
+      if (confirmed) startRun();
+      if (screen === SCREEN_TITLE) {
+        // Let a quiet wave drift behind the title so the arena feels alive.
+        const events = [];
+        world.step(STEP, {
+          move: { x: 0, y: 0, moving: false },
+          aimX: world.player.x + 140,
+          aimY: world.player.y - 60,
+          firing: false,
+          dash: false,
+        }, events);
+      }
     }
 
     if (statusLine) {

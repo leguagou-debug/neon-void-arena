@@ -42,6 +42,9 @@ export class SoundBank {
   bossSpawn() { this.tone(196, 0.45, 'sawtooth', 0.13, 49); }
   bossAttack() { this.tone(92, 0.3, 'sawtooth', 0.15, 44); }
   dash() { this.tone(300, 0.12, 'sine', 0.08, 900); }
+  draftOpen() { this.tone(523, 0.18, 'square', 0.08, 1046); }
+  upgrade() { this.tone(659, 0.22, 'sine', 0.12, 1318); }
+  missile() { this.tone(240, 0.16, 'sawtooth', 0.05, 720); }
   gameOver() { this.tone(440, 0.7, 'triangle', 0.14, 55); }
   toggleMute() {
     this.muted = !this.muted;
